@@ -1,66 +1,111 @@
+class Node {
+  constructor(row, col) {
+    this.row = row;
+    this.col = col;
+    this.key = `${this.row}${this.col}`;
+    this.neighbors = [];
+    this.f = 0;
+    this.g = 0;
+    this.h = 0;
+    this.previousNode = null;
+  }
+}
+
+function addNeighbors(grid) {
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      const cell = grid[row][col];
+
+      if (grid[row - 1]) cell.neighbors.push(grid[row - 1][col]);
+      if (grid[row][col + 1]) cell.neighbors.push(grid[row][col + 1]);
+      if (grid[row + 1]) cell.neighbors.push(grid[row + 1][col]);
+      if (grid[row][col - 1]) cell.neighbors.push(grid[row][col - 1]);
+    }
+  }
+}
+
 function createGrid(rows, cols) {
   const grid = [];
 
-  let i = 0;
   for (let row = 0; row < rows; row++) {
     const newRow = [];
     for (let col = 0; col < cols; col++) {
-      newRow.push(i++);
+      newRow.push(new Node(row, col));
     }
 
     grid.push(newRow);
   }
 
-  console.log(grid.map((row) => row.join(" ")).join("\n"));
+  addNeighbors(grid);
 
   return grid;
 }
 
-function getNeighbors(grid, row, col) {
-  const neighbors = [];
+function heuristic(a, b) {
+  // Euclidean distance
+  /*
+	const distance = Math.sqrt(
+    Math.pow(a.row - b.row, 2) + Math.pow(b.col - b.col, 2)
+  );
+	*/
 
-  if (grid[row - 1]) neighbors.push(grid[row - 1][col]);
-  if (grid[row + 1]) neighbors.push(grid[row + 1][col]);
-  if (grid[row][col - 1] >= 0) neighbors.push(grid[row][col - 1]);
-  if (grid[row][col + 1] >= 0) neighbors.push(grid[row][col + 1]);
+  // Manhattan distance
+  const distance = Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
 
-  return neighbors;
+  return distance;
 }
 
-function createGraph(grid) {
-  const graph = {};
-  for (let row = 0; row < grid.length; row++) {
-    for (let col = 0; col < grid[row].length; col++) {
-      const cell = grid[row][col];
+function aStar(startNode, endNode) {
+  const openSet = [startNode];
+  const closedSet = [];
 
-      graph[cell] = getNeighbors(grid, row, col);
+  while (openSet.length > 0) {
+    let lowestIndex = 0;
+    for (let i = 0; i < openSet.length; i++) {
+      if (openSet[i].f < openSet[lowestIndex].f) lowestIndex = i;
     }
-  }
 
-  return graph;
-}
+    let current = openSet[lowestIndex];
 
-function shortestPath(grid, startNode, endNode) {
-  const graph = createGraph(grid);
+    if (current === endNode) {
+      const path = [current];
 
-  const visited = new Set([startNode]);
+      while (current.previousNode) {
+        path.push(current.previousNode);
 
-  const queue = [[startNode, 0]];
-
-  while (queue.length > 0) {
-    const [node, distance] = queue.shift();
-
-    if (node === endNode) return distance;
-
-    for (const neighbor of graph[node]) {
-      if (!visited.has(neighbor)) {
-        visited.add(neighbor);
-        queue.push([neighbor, distance + 1]);
+        current = current.previousNode;
       }
+
+      return path;
+    }
+
+    openSet.splice(lowestIndex, 1);
+    closedSet.push(current);
+
+    for (const neighbor of current.neighbors) {
+      if (closedSet.includes(neighbor)) continue;
+
+      if (openSet.includes(neighbor)) {
+        if (current.g + 1 < neighbor.g) neighbor.g = current.g + 1;
+      } else {
+        neighbor.g = current.g + 1;
+
+        openSet.push(neighbor);
+      }
+
+      neighbor.h = heuristic(neighbor, endNode);
+      neighbor.f = neighbor.g + neighbor.h;
+      neighbor.previousNode = current;
     }
   }
 
-  return -1;
+  return [];
 }
 
-console.log(shortestPath(createGrid(10, 3), 0, 29));
+const grid = createGrid(10, 10);
+
+console.log(
+  grid.map((row) => row.map((cell) => cell.key).join(" ")).join("\n")
+);
+
+console.log(aStar(grid[0][0], grid[9][9]).map((node) => node.key));

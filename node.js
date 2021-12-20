@@ -1,15 +1,13 @@
 class Node {
-  constructor(row, col, risk) {
+  constructor(row, col, cost) {
     this.row = row;
     this.col = col;
-    this.key = `${this.row}${this.col}`;
-    this.risk = risk;
     this.neighbors = [];
-    this.f = 0;
-    this.g = 0;
-    this.h = 0;
+    this.f = Infinity;
+    this.g = Infinity;
+    this.cost = cost;
     this.previousNode = null;
-    this.walls = false;
+    this.wall = false;
 
     if (Math.random(1) < 0.3) this.wall = true;
   }
@@ -23,8 +21,6 @@ class Node {
       fill(col);
       rect(this.col * h, this.row * w, w, h);
       fill(0);
-      //text(this.risk, this.col * w + 25, this.row * h + 35);
-      //text(this.f, this.col * w + 10, this.row * h + 20);
     }
   }
 

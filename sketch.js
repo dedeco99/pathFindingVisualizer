@@ -27,19 +27,19 @@ function createGrid(input, rows, cols) {
 function heuristic(a, b) {
   // Euclidean distance
 
+  /*
   const distance = Math.sqrt(
     Math.pow(a.row - b.row, 2) + Math.pow(b.col - b.col, 2)
   );
+	*/
 
   // Manhattan distance
-  // const distance = Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
+  const distance = Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
 
-  return distance + a.risk;
+  return distance;
 }
 
-const grid = createGrid([], 50, 75);
-
-console.log(grid);
+const grid = createGrid([], 40, 40);
 
 const rows = grid.length;
 const cols = grid[0].length;
@@ -55,8 +55,7 @@ const closedSet = [];
 let w, h;
 
 function setup() {
-  createCanvas(1200, 800);
-  console.log("A*");
+  createCanvas(1200, 1200);
 
   w = width / cols;
   h = height / rows;
@@ -82,19 +81,18 @@ function draw() {
     for (const neighbor of current.neighbors) {
       if (closedSet.includes(neighbor) || neighbor.wall) continue;
 
-      const testG = current.g + heuristic(neighbor, endNode);
+      const g = current.g + neighbor.cost;
 
-      if (testG < neighbor.g || !openSet.includes(neighbor)) {
-        neighbor.g = testG;
-        neighbor.h = heuristic(neighbor, endNode);
-        neighbor.f = neighbor.g + neighbor.h;
+      if (g < neighbor.g || !openSet.includes(neighbor)) {
+        neighbor.g = g;
+        neighbor.f = g + heuristic(neighbor, endNode);
         neighbor.previousNode = current;
 
         if (!openSet.includes(neighbor)) openSet.push(neighbor);
       }
     }
   } else {
-    console.log("no solution");
+    alert("No solution found");
     noLoop();
     return;
   }
@@ -125,6 +123,6 @@ function draw() {
   }
 
   for (let i = 0; i < path.length; i++) {
-    path[i].show(color(0, 0, 255, 50));
+    path[i].show(color(0, 0, 255));
   }
 }

@@ -6,25 +6,59 @@ function setCanvasDimensions() {
   canvas.height = window.innerHeight;
 }
 
-function drawCircle(x, y) {
-  ctx.fillStyle = "orangered";
-  ctx.beginPath();
-  ctx.arc(x, y, 50, 0, Math.PI * 2);
-  ctx.fill();
+setCanvasDimensions();
+
+window.addEventListener("resize", setCanvasDimensions);
+
+const mouse = { x: -50, y: -50 };
+const particles = [];
+
+class Particle {
+  constructor() {
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 5 + 1;
+    this.speedX = Math.random() * 3 - 1.5;
+    this.speedY = Math.random() * 3 - 1.5;
+  }
+
+  update() {
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }
+
+  draw() {
+    ctx.fillStyle = "orangered";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 50, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
-let toggleDraw = false;
+function init() {
+  for (let i = 0; i < 100; i++) {
+    particles.push(new Particle());
+  }
+}
 
-window.addEventListener("resize", () => {
-  setCanvasDimensions();
+function handleParticles() {
+  for (const particle of particles) {
+    particle.update();
+    particle.draw();
+  }
+}
+
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  handleParticles();
+  requestAnimationFrame(animate);
+}
+
+canvas.addEventListener("mousemove", ({ x, y }) => {
+  mouse.x = x;
+  mouse.y = y;
 });
 
-canvas.addEventListener("click", (event) => {
-  toggleDraw = !toggleDraw;
-});
+init();
 
-canvas.addEventListener("mousemove", (event) => {
-  if (toggleDraw) drawCircle(event.x, event.y);
-});
-
-setCanvasDimensions();
+animate();

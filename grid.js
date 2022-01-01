@@ -37,6 +37,7 @@ function heuristic(a, b, diagonalsAllowed) {
 }
 
 function aStar(startNode, endNode) {
+  const states = [];
   const openSet = [];
   const closedSet = [];
 
@@ -61,7 +62,9 @@ function aStar(startNode, endNode) {
         current.isPath = true;
       }
 
-      return path;
+      states.push({ path: path.reverse() });
+
+      return states;
     }
 
     openSet.splice(lowestIndex, 1);
@@ -81,7 +84,9 @@ function aStar(startNode, endNode) {
         if (!openSet.includes(neighbor)) openSet.push(neighbor);
       }
     }
+
+    states.push({ openSet: openSet.slice(), closedSet: closedSet.slice() });
   }
 
-  return [];
+  return states;
 }

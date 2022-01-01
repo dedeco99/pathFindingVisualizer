@@ -13,9 +13,10 @@ class Cell {
     this.isEnd = isEnd;
     this.isWall = isWall;
     this.isPath = isPath;
+    this.isVisited = false;
   }
 
-  draw() {
+  draw(color) {
     ctx.beginPath();
 
     ctx.strokeStyle = "white";
@@ -34,6 +35,12 @@ class Cell {
     } else if (this.isPath) {
       ctx.fillStyle = "darkblue";
       ctx.fill();
+    } else if (this.isVisited) {
+      ctx.fillStyle = "darkcyan";
+      ctx.fill();
+    } else if (color) {
+      ctx.fillStyle = color;
+      ctx.fill();
     }
 
     ctx.fillStyle = "white";
@@ -46,7 +53,7 @@ class Cell {
 }
 
 class Grid {
-  constructor(ctx, cellSize, grid) {
+  constructor(ctx, cellSize, grid, states) {
     this.ctx = ctx;
     this.grid = grid.map((row) =>
       row.map(
@@ -63,6 +70,14 @@ class Grid {
           )
       )
     );
+    this.states = states;
+    this.lastTimestamp = 0;
+    this.interval = 1000 / 30;
+    this.timer = 0;
+
+    this.animatingStateIndex = 0;
+    this.animatingPathIndex = 0;
+    this.isFinished = false;
   }
 
   draw() {
@@ -70,6 +85,60 @@ class Grid {
       for (let col = 0; col < this.grid[row].length; col++) {
         this.grid[row][col].draw();
       }
+    }
+
+    const currentState = this.states[this.animatingStateIndex];
+
+    if (currentState) {
+      if (currentState.path) {
+        const currentPathNode = currentState.path[this.animatingPathIndex];
+
+        if (currentPathNode) {
+          this.grid[currentPathNode.row][currentPathNode.col].draw("darkblue");
+          this.grid[currentPathNode.row][currentPathNode.col].isPath = true;
+
+          this.animatingPathIndex++;
+        } else {
+          this.animatingStateIndex++;
+        }
+      } else {
+        for (const node of currentState.openSet) {
+          this.grid[node.row][node.col].draw("darkturquoise");
+        }
+
+        for (const node of currentState.closedSet) {
+          this.grid[node.row][node.col].draw("darkcyan");
+          this.grid[node.row][node.col].isVisited = true;
+        }
+
+        this.animatingStateIndex++;
+      }
+    } else {
+      cancelAnimationFrame(gridVisualizationAnimation);
+
+      this.isFinished = true;
+    }
+  }
+
+  animate(timestamp) {
+    const deltaTime = timestamp - this.lastTimestamp;
+    this.lastTimestamp = timestamp;
+
+    if (this.timer > this.interval) {
+      // Clear the whole canvas every animation
+      this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+
+      this.draw();
+
+      this.timer = 0;
+    } else {
+      this.timer += deltaTime;
+    }
+
+    if (!this.isFinished) {
+      gridVisualizationAnimation = requestAnimationFrame(
+        this.animate.bind(this)
+      );
     }
   }
 }
@@ -82,20 +151,36 @@ function init() {
   const rows = Math.floor(canvas.height / cellSize);
   const cols = Math.floor(canvas.width / cellSize);
 
-  const grid = createGrid([], rows, cols, true);
+  const originalGrid = createGrid([], rows, cols, false);
+  const grid = createGrid([], rows, cols, false);
+
+  const startNodePosition = { row: 0, col: 0 };
+  const endNodePosition = { row: rows - 1, col: cols - 1 };
+
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      if (startNodePosition.row == row && startNodePosition.col == col) {
+        grid[row][col].isStart = true;
+        originalGrid[row][col].isStart = true;
+      } else if (endNodePosition.row === row && endNodePosition.col === col) {
+        grid[row][col].isEnd = true;
+        originalGrid[row][col].isEnd = true;
+      } else {
+        const isWall = Math.random(1) < 0.3;
+
+        grid[row][col].isWall = isWall;
+        originalGrid[row][col].isWall = isWall;
+      }
+    }
+  }
 
   const startNode = grid[0][0];
   const endNode = grid[rows - 1][cols - 1];
 
-  startNode.isWall = false;
-  startNode.isStart = true;
-  endNode.isWall = false;
-  endNode.isEnd = true;
+  const states = aStar(startNode, endNode);
 
-  aStar(startNode, endNode);
-
-  gridVisualization = new Grid(ctx, cellSize, grid);
-  gridVisualization.draw();
+  gridVisualization = new Grid(ctx, cellSize, originalGrid, states);
+  gridVisualization.animate(0);
 }
 
 window.onload = () => {
@@ -106,7 +191,7 @@ window.onload = () => {
 };
 
 window.addEventListener("resize", () => {
-  cancelAnimationFrame(gridAnimation);
+  cancelAnimationFrame(gridVisualizationAnimation);
 
   init();
 });

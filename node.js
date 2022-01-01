@@ -10,7 +10,7 @@ class Node {
     this.previousNode = null;
     this.isStart = false;
     this.isEnd = false;
-    this.isWall = Math.random(1) < 0.3;
+    this.isWall = false;
     this.isPath = false;
   }
 

@@ -1,15 +1,18 @@
 let canvas;
 let ctx;
-let grid;
-let gridAnimation;
+let gridVisualization;
+let gridVisualizationAnimation;
 
 class Cell {
-  constructor(ctx, row, col, size, isWall) {
+  constructor(ctx, row, col, size, isStart, isEnd, isWall, isPath) {
     this.ctx = ctx;
     this.row = row;
     this.col = col;
     this.size = size;
+    this.isStart = isStart;
+    this.isEnd = isEnd;
     this.isWall = isWall;
+    this.isPath = isPath;
   }
 
   draw() {
@@ -19,8 +22,17 @@ class Cell {
     ctx.rect(this.col * this.size, this.row * this.size, this.size, this.size);
     ctx.stroke();
 
-    if (this.isWall) {
+    if (this.isStart) {
+      ctx.fillStyle = "orange";
+      ctx.fill();
+    } else if (this.isEnd) {
+      ctx.fillStyle = "purple";
+      ctx.fill();
+    } else if (this.isWall) {
       ctx.fillStyle = "orangered";
+      ctx.fill();
+    } else if (this.isPath) {
+      ctx.fillStyle = "darkblue";
       ctx.fill();
     }
 
@@ -38,7 +50,17 @@ class Grid {
     this.ctx = ctx;
     this.grid = grid.map((row) =>
       row.map(
-        (cell) => new Cell(ctx, cell.row, cell.col, cellSize, cell.isWall)
+        (cell) =>
+          new Cell(
+            ctx,
+            cell.row,
+            cell.col,
+            cellSize,
+            cell.isStart,
+            cell.isEnd,
+            cell.isWall,
+            cell.isPath
+          )
       )
     );
   }
@@ -60,8 +82,20 @@ function init() {
   const rows = Math.floor(canvas.height / cellSize);
   const cols = Math.floor(canvas.width / cellSize);
 
-  grid = new Grid(ctx, cellSize, createGrid([], rows, cols));
-  grid.draw();
+  const grid = createGrid([], rows, cols, true);
+
+  const startNode = grid[0][0];
+  const endNode = grid[rows - 1][cols - 1];
+
+  startNode.isWall = false;
+  startNode.isStart = true;
+  endNode.isWall = false;
+  endNode.isEnd = true;
+
+  aStar(startNode, endNode);
+
+  gridVisualization = new Grid(ctx, cellSize, grid);
+  gridVisualization.draw();
 }
 
 window.onload = () => {

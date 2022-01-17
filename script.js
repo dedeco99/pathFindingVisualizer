@@ -1,5 +1,16 @@
 let canvas;
 let ctx;
+
+let cellsInput;
+let startButton;
+let resetButton;
+
+let cellSize;
+let originalGrid;
+let grid;
+let startNode;
+let endNode;
+
 let gridVisualization;
 let gridVisualizationAnimation;
 
@@ -12,8 +23,8 @@ class Cell {
     this.isStart = isStart;
     this.isEnd = isEnd;
     this.isWall = isWall;
-    this.isPath = isPath;
     this.isVisited = false;
+    this.isPath = isPath;
   }
 
   draw(color) {
@@ -42,18 +53,11 @@ class Cell {
       ctx.fillStyle = color;
       ctx.fill();
     }
-
-    ctx.fillStyle = "white";
-    ctx.fillText(
-      `${this.row}-${this.col}`,
-      this.col * this.size + 5,
-      this.row * this.size + 15
-    );
   }
 }
 
 class Grid {
-  constructor(ctx, cellSize, grid, states) {
+  constructor(ctx, cellSize, grid) {
     this.ctx = ctx;
     this.grid = grid.map((row) =>
       row.map(
@@ -70,14 +74,41 @@ class Grid {
           )
       )
     );
-    this.states = states;
+    this.states = [];
     this.lastTimestamp = 0;
     this.interval = 1000 / 30;
     this.timer = 0;
 
     this.animatingStateIndex = 0;
     this.animatingPathIndex = 0;
+    this.isRunning = false;
     this.isFinished = false;
+  }
+
+  setStartNode(row, col) {
+    this.grid[row][col].isStart = true;
+
+    this.grid[row][col].draw();
+  }
+
+  setEndNode(row, col) {
+    this.grid[row][col].isEnd = true;
+
+    this.grid[row][col].draw();
+  }
+
+  setWallNode(row, col) {
+    this.grid[row][col].isWall = true;
+
+    this.grid[row][col].draw();
+  }
+
+  setIsRunning(isRunning) {
+    this.isRunning = isRunning;
+  }
+
+  setStates(states) {
+    this.states = states;
   }
 
   draw() {
@@ -113,10 +144,13 @@ class Grid {
 
         this.animatingStateIndex++;
       }
-    } else {
+    } else if (this.isRunning) {
       cancelAnimationFrame(gridVisualizationAnimation);
 
+      this.isRunning = false;
       this.isFinished = true;
+
+      startButton.disabled = true;
     }
   }
 
@@ -135,7 +169,7 @@ class Grid {
       this.timer += deltaTime;
     }
 
-    if (!this.isFinished) {
+    if (this.isRunning) {
       gridVisualizationAnimation = requestAnimationFrame(
         this.animate.bind(this)
       );
@@ -144,48 +178,101 @@ class Grid {
 }
 
 function init() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  let cells = cellsInput.value;
 
-  const cellSize = canvas.width / 20;
+  container = document.getElementById("container");
+
+  canvas.width = container.offsetWidth;
+  canvas.height = container.offsetHeight - 80;
+
+  cellSize = canvas.width / cells;
   const rows = Math.floor(canvas.height / cellSize);
   const cols = Math.floor(canvas.width / cellSize);
 
-  const originalGrid = createGrid([], rows, cols, false);
-  const grid = createGrid([], rows, cols, false);
-
-  const startNodePosition = { row: 0, col: 0 };
-  const endNodePosition = { row: rows - 1, col: cols - 1 };
+  originalGrid = createGrid([], rows, cols, false);
+  grid = createGrid([], rows, cols, false);
 
   for (let row = 0; row < grid.length; row++) {
     for (let col = 0; col < grid[row].length; col++) {
-      if (startNodePosition.row == row && startNodePosition.col == col) {
-        grid[row][col].isStart = true;
-        originalGrid[row][col].isStart = true;
-      } else if (endNodePosition.row === row && endNodePosition.col === col) {
-        grid[row][col].isEnd = true;
-        originalGrid[row][col].isEnd = true;
-      } else {
-        const isWall = Math.random(1) < 0.3;
+      const isWall = Math.random(1) < 0.3;
 
-        grid[row][col].isWall = isWall;
-        originalGrid[row][col].isWall = isWall;
-      }
+      grid[row][col].isWall = isWall;
+      originalGrid[row][col].isWall = isWall;
     }
   }
 
-  const startNode = grid[0][0];
-  const endNode = grid[rows - 1][cols - 1];
+  gridVisualization = new Grid(ctx, cellSize, originalGrid);
 
-  const states = aStar(startNode, endNode);
-
-  gridVisualization = new Grid(ctx, cellSize, originalGrid, states);
-  gridVisualization.animate(0);
+  gridVisualization.draw();
 }
 
 window.onload = () => {
   canvas = document.getElementById("canvas");
   ctx = canvas.getContext("2d");
+
+  cellsInput = document.getElementById("cells");
+  startButton = document.getElementById("startButton");
+  resetButton = document.getElementById("resetButton");
+
+  cellsInput.addEventListener("change", (e) => {
+    cells = e.target.value;
+
+    cancelAnimationFrame(gridVisualizationAnimation);
+
+    init();
+  });
+
+  startButton.addEventListener("click", () => {
+    if (!gridVisualization.states.length) {
+      gridVisualization.setStates(aStar(startNode, endNode));
+    }
+
+    gridVisualization.setIsRunning(!gridVisualization.isRunning);
+    gridVisualization.animate(0);
+  });
+
+  resetButton.addEventListener("click", () => {
+    originalGrid = null;
+    grid = null;
+    startNode = null;
+    endNode = null;
+
+    startButton.disabled = false;
+
+    cancelAnimationFrame(gridVisualizationAnimation);
+
+    init();
+  });
+
+  canvas.addEventListener("click", (e) => {
+    if (!gridVisualization.isRunning && !gridVisualization.isFinished) {
+      const row = Math.floor(e.offsetY / cellSize);
+      const col = Math.floor(e.offsetX / cellSize);
+
+      if (!startNode) {
+        startNode = grid[row][col];
+
+        originalGrid[row][col].isStart = true;
+        grid[row][col].isStart = true;
+
+        gridVisualization.setStartNode(row, col);
+      } else if (!endNode) {
+        if (grid[row][col] !== startNode) {
+          endNode = grid[row][col];
+
+          originalGrid[row][col].isEnd = true;
+          grid[row][col].isEnd = true;
+
+          gridVisualization.setEndNode(row, col);
+        }
+      } else {
+        originalGrid[row][col].isWall = true;
+        grid[row][col].isWall = true;
+
+        gridVisualization.setWallNode(row, col);
+      }
+    }
+  });
 
   init();
 };

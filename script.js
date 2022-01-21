@@ -1,126 +1,306 @@
 let canvas;
 let ctx;
-let particlesEffect;
-let particlesEffectAnimation;
 
-class Particle {
-  constructor(ctx, x, y, hue) {
+let cellsInput;
+let toggleRunningButton;
+let resetButton;
+
+let cellSize;
+let originalGrid;
+let grid;
+let startNode;
+let endNode;
+
+let gridVisualization;
+let gridVisualizationAnimation;
+
+class Cell {
+  constructor(ctx, row, col, size, isStart, isEnd, isWall, isPath) {
     this.ctx = ctx;
-    this.x = x;
-    this.y = y;
-    this.size = Math.random() * 15 + 1;
-    this.speedX = Math.random() * 3 - 1.5;
-    this.speedY = Math.random() * 3 - 1.5;
-    this.color = `hsl(${hue}, 100%, 50%)`;
+    this.row = row;
+    this.col = col;
+    this.size = size;
+    this.isStart = isStart;
+    this.isEnd = isEnd;
+    this.isWall = isWall;
+    this.isVisited = false;
+    this.isPath = isPath;
   }
 
-  update() {
-    this.x += this.speedX;
-    this.y += this.speedY;
-    if (this.size > 0.2) this.size -= 0.1;
-  }
+  draw(color) {
+    ctx.beginPath();
 
-  draw() {
-    this.ctx.fillStyle = this.color;
-    this.ctx.beginPath();
-    this.ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    this.ctx.fill();
+    ctx.strokeStyle = "white";
+    ctx.rect(this.col * this.size, this.row * this.size, this.size, this.size);
+    ctx.stroke();
+
+    if (this.isStart) {
+      ctx.fillStyle = "orange";
+      ctx.fill();
+    } else if (this.isEnd) {
+      ctx.fillStyle = "purple";
+      ctx.fill();
+    } else if (this.isWall) {
+      ctx.fillStyle = "orangered";
+      ctx.fill();
+    } else if (this.isPath) {
+      ctx.fillStyle = "darkblue";
+      ctx.fill();
+    } else if (this.isVisited) {
+      ctx.fillStyle = "darkcyan";
+      ctx.fill();
+    } else if (color) {
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
   }
 }
 
-class ParticlesEffect {
-  constructor(ctx, width, height) {
+class Grid {
+  constructor(ctx, cellSize, grid) {
     this.ctx = ctx;
-    this.width = width;
-    this.height = height;
-    this.particles = [];
-    this.hue = 0;
+    this.grid = grid.map((row) =>
+      row.map(
+        (cell) =>
+          new Cell(
+            ctx,
+            cell.row,
+            cell.col,
+            cellSize,
+            cell.isStart,
+            cell.isEnd,
+            cell.isWall,
+            cell.isPath
+          )
+      )
+    );
+    this.states = [];
+    this.lastTimestamp = 0;
+    this.interval = 1000 / 30;
+    this.timer = 0;
+
+    this.animatingStateIndex = 0;
+    this.animatingPathIndex = 0;
+    this.isRunning = false;
+    this.isPlaying = false;
+    this.isFinished = false;
   }
 
-  generateParticles(x, y) {
-    for (let i = 0; i < 5; i++) {
-      this.particles.push(new Particle(ctx, x, y, this.hue));
-    }
+  setStartNode(row, col) {
+    this.grid[row][col].isStart = true;
+
+    this.grid[row][col].draw();
+  }
+
+  setEndNode(row, col) {
+    this.grid[row][col].isEnd = true;
+
+    this.grid[row][col].draw();
+  }
+
+  setWallNode(row, col) {
+    this.grid[row][col].isWall = !this.grid[row][col].isWall;
+
+    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+
+    this.draw();
+  }
+
+  setIsPlaying(isPlaying) {
+    this.isPlaying = isPlaying;
+  }
+
+  setStates(states) {
+    this.states = states;
   }
 
   draw() {
-    for (let i = 0; i < this.particles.length; i++) {
-      this.particles[i].update();
-      this.particles[i].draw();
+    for (let row = 0; row < this.grid.length; row++) {
+      for (let col = 0; col < this.grid[row].length; col++) {
+        this.grid[row][col].draw();
+      }
+    }
 
-      for (let j = i; j < this.particles.length; j++) {
-        const dx = this.particles[i].x - this.particles[j].x;
-        const dy = this.particles[i].y - this.particles[j].y;
-        const distance = Math.sqrt(dx * dx + dy * dy); // Pythagorean theorem
+    const currentState = this.states[this.animatingStateIndex];
 
-        if (distance < 100) {
-          this.ctx.beginPath();
-          this.ctx.strokeStyle = this.particles[i].color;
-          this.ctx.lineWidth = 0.2;
-          this.ctx.moveTo(this.particles[i].x, this.particles[i].y);
-          this.ctx.lineTo(this.particles[j].x, this.particles[j].y);
-          this.ctx.stroke();
-          this.ctx.closePath();
+    if (currentState) {
+      if (currentState.path) {
+        const currentPathNode = currentState.path[this.animatingPathIndex];
+
+        if (currentPathNode) {
+          this.grid[currentPathNode.row][currentPathNode.col].draw("darkblue");
+          this.grid[currentPathNode.row][currentPathNode.col].isPath = true;
+
+          this.animatingPathIndex++;
+        } else {
+          this.animatingStateIndex++;
         }
-      }
+      } else {
+        for (const node of currentState.openSet) {
+          this.grid[node.row][node.col].draw("darkturquoise");
+        }
 
-      if (this.particles[i].size <= 0.3) {
-        this.particles.splice(i, 1);
-        i--;
+        for (const node of currentState.closedSet) {
+          this.grid[node.row][node.col].draw("darkcyan");
+          this.grid[node.row][node.col].isVisited = true;
+        }
+
+        this.animatingStateIndex++;
       }
+    } else if (this.isRunning) {
+      cancelAnimationFrame(gridVisualizationAnimation);
+
+      this.isRunning = false;
+      this.isFinished = true;
+
+      cellsInput.disabled = true;
+      toggleRunningButton.disabled = true;
     }
   }
 
-  animate() {
-    // Clear the whole canvas every animation
-    this.ctx.clearRect(0, 0, this.width, this.height);
+  animate(timestamp) {
+    this.isRunning = true;
 
-    // Add a transparent rectangle the size of the canvas with some opacity (trails effect)
-    // this.ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-    // this.ctx.fillRect(0, 0, this.width, this.height);
+    const deltaTime = timestamp - this.lastTimestamp;
+    this.lastTimestamp = timestamp;
 
-    this.draw();
+    if (this.timer > this.interval) {
+      // Clear the whole canvas every animation
+      this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
-    this.hue += 5;
+      this.draw();
 
-    particlesEffectAnimation = requestAnimationFrame(this.animate.bind(this));
+      this.timer = 0;
+    } else {
+      this.timer += deltaTime;
+    }
+
+    if (this.isPlaying && this.isRunning) {
+      gridVisualizationAnimation = requestAnimationFrame(
+        this.animate.bind(this)
+      );
+    }
   }
 }
 
 function init() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  let cells = cellsInput.value;
 
-  particlesEffect = new ParticlesEffect(ctx, canvas.width, canvas.height);
-  particlesEffect.animate();
+  container = document.getElementById("container");
+
+  canvas.width = container.offsetWidth;
+  canvas.height = container.offsetHeight - 80;
+
+  cellSize = canvas.width / cells;
+  const rows = Math.floor(canvas.height / cellSize);
+  const cols = Math.floor(canvas.width / cellSize);
+
+  originalGrid = createGrid([], rows, cols, false);
+  grid = createGrid([], rows, cols, false);
+
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      const isWall = Math.random(1) < 0.3;
+
+      grid[row][col].isWall = isWall;
+      originalGrid[row][col].isWall = isWall;
+    }
+  }
+
+  gridVisualization = new Grid(ctx, cellSize, originalGrid);
+
+  gridVisualization.draw();
 }
 
 window.onload = () => {
   canvas = document.getElementById("canvas");
   ctx = canvas.getContext("2d");
 
-  init();
+  cellsInput = document.getElementById("cells");
+  toggleRunningButton = document.getElementById("toggleRunningButton");
+  resetButton = document.getElementById("resetButton");
 
-  /*
-  function createGrid() {
-    ctx.strokeStyle = "white";
-    ctx.beginPath();
-    ctx.rect(50, 50, 50, 50);
-    ctx.stroke();
-  }
-	*/
+  cellsInput.addEventListener("change", (e) => {
+    cells = e.target.value;
+
+    cancelAnimationFrame(gridVisualizationAnimation);
+
+    init();
+  });
+
+  toggleRunningButton.addEventListener("click", () => {
+    if (!startNode || !endNode) {
+      alert("Set your start and end point");
+      return;
+    }
+
+    if (!gridVisualization.states.length) {
+      gridVisualization.setStates(aStar(startNode, endNode));
+    }
+
+    toggleRunningButton.innerHTML = gridVisualization.isPlaying
+      ? "START"
+      : "STOP";
+    toggleRunningButton.className = gridVisualization.isPlaying
+      ? "button start"
+      : "button stop";
+
+    gridVisualization.setIsPlaying(!gridVisualization.isPlaying);
+    gridVisualization.animate(0);
+  });
+
+  resetButton.addEventListener("click", () => {
+    originalGrid = null;
+    grid = null;
+    startNode = null;
+    endNode = null;
+
+    cellsInput.disabled = false;
+    toggleRunningButton.disabled = false;
+    toggleRunningButton.innerHTML = "START";
+    toggleRunningButton.className = "button start";
+
+    cancelAnimationFrame(gridVisualizationAnimation);
+
+    init();
+  });
+
+  canvas.addEventListener("click", (e) => {
+    if (gridVisualization.isRunning) return;
+    if (gridVisualization.isFinished) return;
+
+    const row = Math.floor(e.offsetY / cellSize);
+    const col = Math.floor(e.offsetX / cellSize);
+
+    if (!startNode) {
+      startNode = grid[row][col];
+
+      originalGrid[row][col].isStart = true;
+      grid[row][col].isStart = true;
+
+      gridVisualization.setStartNode(row, col);
+    } else if (!endNode) {
+      if (grid[row][col] !== startNode) {
+        endNode = grid[row][col];
+
+        originalGrid[row][col].isEnd = true;
+        grid[row][col].isEnd = true;
+
+        gridVisualization.setEndNode(row, col);
+      }
+    } else {
+      originalGrid[row][col].isWall = !originalGrid[row][col].isWall;
+      grid[row][col].isWall = !grid[row][col].isWall;
+
+      gridVisualization.setWallNode(row, col);
+    }
+  });
+
+  init();
 };
 
 window.addEventListener("resize", () => {
-  cancelAnimationFrame(particlesEffectAnimation);
+  cancelAnimationFrame(gridVisualizationAnimation);
 
   init();
-});
-
-window.addEventListener("click", ({ x, y }) => {
-  particlesEffect.generateParticles(x, y);
-});
-
-window.addEventListener("mousemove", ({ x, y }) => {
-  particlesEffect.generateParticles(x, y);
 });

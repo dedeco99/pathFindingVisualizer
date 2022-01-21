@@ -4,18 +4,154 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Path Finding Visualizer</title>
     <style>
-      #canvas {
-        position: absolute;
-        background: black;
-        width: 100%;
+      @import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@200;300;400;500&display=swap");
+
+      body {
+        background: #111;
+        color: white;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      #container {
+        display: flex;
+        flex-direction: column;
         height: 100%;
-        top: 0;
-        left: 0;
+        margin: 10px;
+      }
+
+      #config {
+        margin: 10px 0px;
+      }
+
+      #canvas {
+        background: #111;
+        height: 100%;
+        animation: fadeIn 1s ease-in-out forwards;
+      }
+
+      @keyframes fadeIn {
+        0% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .button {
+        width: 75px;
+        height: 35px;
+        font-size: 0.95em;
+        border-radius: 5px;
+        color: white;
+        font-family: "Source Code Pro", monospace;
+        border: 0px;
+        text-align: center;
+        transition: transform 250ms, background 250ms ease, margin 250ms ease;
+        animation: drop 1s ease-out backwards;
+      }
+
+      @keyframes drop {
+        0% {
+          transform: translateY(-100px);
+        }
+        50% {
+          transform: translateY(5px);
+        }
+        100% {
+          transform: translateY(0%);
+        }
+      }
+
+      .label {
+        top: -25px;
+        left: 40px;
+        position: relative;
+        z-index: 1;
+        font-family: "Source Code Pro", monospace;
+        font-size: 0.65em;
+        animation: fadeIn 1s 1s ease-out backwards;
+      }
+
+      #cells {
+        background: #333;
+      }
+
+      #toggleRunningButton {
+        width: 100px;
+        font-weight: bold;
+      }
+
+      #toggleRunningButton.start {
+        content: "Start";
+        background: green;
+      }
+
+      #toggleRunningButton.stop {
+        content: "Stop";
+        background: red;
+      }
+
+      #toggleRunningButton.start:hover {
+        background: lightgreen;
+      }
+
+      #toggleRunningButton.stop:hover {
+        background: tomato;
+      }
+
+      #toggleRunningButton.start:disabled,
+      #toggleRunningButton.stop:disabled {
+        font-weight: lighter;
+        color: #999;
+        background: #222;
+      }
+
+      #cells:disabled {
+        font-weight: lighter;
+        color: #999;
+        background: #222;
+      }
+
+      #cells:hover:disabled {
+        transform: none;
+        margin: 0px;
+      }
+
+      #toggleRunningButton:hover:disabled {
+        transform: none;
+        margin: 0px;
+      }
+
+      #resetButton {
+        background: #333;
+      }
+
+      #cells:hover,
+      #toggleRunningButton:hover,
+      #resetButton:hover {
+        transform: scale(1.05);
+        margin: 0px 5px;
       }
     </style>
   </head>
   <body>
-    <canvas id="canvas"></canvas>
+    <div id="container">
+      <div id="config">
+        <center>
+          <label for="cells" class="label">cells</label>
+          <input id="cells" class="button" value="50" type="number" />
+          <button id="toggleRunningButton" class="button start">START</button>
+          <button id="resetButton" class="button">RESET</button>
+        </center>
+      </div>
+      <div id="canvasContainer">
+        <canvas id="canvas"></canvas>
+      </div>
+    </div>
+    <script src="node.js"></script>
+    <script src="grid.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

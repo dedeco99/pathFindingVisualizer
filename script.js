@@ -82,6 +82,7 @@ class Grid {
     this.animatingStateIndex = 0;
     this.animatingPathIndex = 0;
     this.isRunning = false;
+    this.isPlaying = false;
     this.isFinished = false;
   }
 
@@ -105,8 +106,8 @@ class Grid {
     this.draw();
   }
 
-  setIsRunning(isRunning) {
-    this.isRunning = isRunning;
+  setIsPlaying(isPlaying) {
+    this.isPlaying = isPlaying;
   }
 
   setStates(states) {
@@ -158,6 +159,8 @@ class Grid {
   }
 
   animate(timestamp) {
+    this.isRunning = true;
+
     const deltaTime = timestamp - this.lastTimestamp;
     this.lastTimestamp = timestamp;
 
@@ -172,7 +175,7 @@ class Grid {
       this.timer += deltaTime;
     }
 
-    if (this.isRunning) {
+    if (this.isPlaying && this.isRunning) {
       gridVisualizationAnimation = requestAnimationFrame(
         this.animate.bind(this)
       );
@@ -235,14 +238,14 @@ window.onload = () => {
       gridVisualization.setStates(aStar(startNode, endNode));
     }
 
-    toggleRunningButton.innerHTML = gridVisualization.isRunning
+    toggleRunningButton.innerHTML = gridVisualization.isPlaying
       ? "START"
       : "STOP";
-    toggleRunningButton.className = gridVisualization.isRunning
+    toggleRunningButton.className = gridVisualization.isPlaying
       ? "button start"
       : "button stop";
 
-    gridVisualization.setIsRunning(!gridVisualization.isRunning);
+    gridVisualization.setIsPlaying(!gridVisualization.isPlaying);
     gridVisualization.animate(0);
   });
 
@@ -263,32 +266,33 @@ window.onload = () => {
   });
 
   canvas.addEventListener("click", (e) => {
-    if (!gridVisualization.isRunning && !gridVisualization.isFinished) {
-      const row = Math.floor(e.offsetY / cellSize);
-      const col = Math.floor(e.offsetX / cellSize);
+    if (gridVisualization.isRunning) return;
+    if (gridVisualization.isFinished) return;
 
-      if (!startNode) {
-        startNode = grid[row][col];
+    const row = Math.floor(e.offsetY / cellSize);
+    const col = Math.floor(e.offsetX / cellSize);
 
-        originalGrid[row][col].isStart = true;
-        grid[row][col].isStart = true;
+    if (!startNode) {
+      startNode = grid[row][col];
 
-        gridVisualization.setStartNode(row, col);
-      } else if (!endNode) {
-        if (grid[row][col] !== startNode) {
-          endNode = grid[row][col];
+      originalGrid[row][col].isStart = true;
+      grid[row][col].isStart = true;
 
-          originalGrid[row][col].isEnd = true;
-          grid[row][col].isEnd = true;
+      gridVisualization.setStartNode(row, col);
+    } else if (!endNode) {
+      if (grid[row][col] !== startNode) {
+        endNode = grid[row][col];
 
-          gridVisualization.setEndNode(row, col);
-        }
-      } else {
-        originalGrid[row][col].isWall = true;
-        grid[row][col].isWall = true;
+        originalGrid[row][col].isEnd = true;
+        grid[row][col].isEnd = true;
 
-        gridVisualization.setWallNode(row, col);
+        gridVisualization.setEndNode(row, col);
       }
+    } else {
+      originalGrid[row][col].isWall = !originalGrid[row][col].isWall;
+      grid[row][col].isWall = !grid[row][col].isWall;
+
+      gridVisualization.setWallNode(row, col);
     }
   });
 

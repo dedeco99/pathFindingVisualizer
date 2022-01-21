@@ -2,7 +2,7 @@ let canvas;
 let ctx;
 
 let cellsInput;
-let startButton;
+let toggleRunningButton;
 let resetButton;
 
 let cellSize;
@@ -98,9 +98,11 @@ class Grid {
   }
 
   setWallNode(row, col) {
-    this.grid[row][col].isWall = true;
+    this.grid[row][col].isWall = !this.grid[row][col].isWall;
 
-    this.grid[row][col].draw();
+    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+
+    this.draw();
   }
 
   setIsRunning(isRunning) {
@@ -150,7 +152,8 @@ class Grid {
       this.isRunning = false;
       this.isFinished = true;
 
-      startButton.disabled = true;
+      cellsInput.disabled = true;
+      toggleRunningButton.disabled = true;
     }
   }
 
@@ -211,7 +214,7 @@ window.onload = () => {
   ctx = canvas.getContext("2d");
 
   cellsInput = document.getElementById("cells");
-  startButton = document.getElementById("startButton");
+  toggleRunningButton = document.getElementById("toggleRunningButton");
   resetButton = document.getElementById("resetButton");
 
   cellsInput.addEventListener("change", (e) => {
@@ -222,10 +225,22 @@ window.onload = () => {
     init();
   });
 
-  startButton.addEventListener("click", () => {
+  toggleRunningButton.addEventListener("click", () => {
+    if (!startNode || !endNode) {
+      alert("Set your start and end point");
+      return;
+    }
+
     if (!gridVisualization.states.length) {
       gridVisualization.setStates(aStar(startNode, endNode));
     }
+
+    toggleRunningButton.innerHTML = gridVisualization.isRunning
+      ? "START"
+      : "STOP";
+    toggleRunningButton.className = gridVisualization.isRunning
+      ? "button start"
+      : "button stop";
 
     gridVisualization.setIsRunning(!gridVisualization.isRunning);
     gridVisualization.animate(0);
@@ -237,7 +252,10 @@ window.onload = () => {
     startNode = null;
     endNode = null;
 
-    startButton.disabled = false;
+    cellsInput.disabled = false;
+    toggleRunningButton.disabled = false;
+    toggleRunningButton.innerHTML = "START";
+    toggleRunningButton.className = "button start";
 
     cancelAnimationFrame(gridVisualizationAnimation);
 
